@@ -12,6 +12,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->inputFilePickerPushButton, &QPushButton::clicked, this, [this]{
         openFilePicker("input");
     });
+
+    connect(ui->outputFilePickerPushButton, &QPushButton::clicked, this, [this]{
+        openFilePicker("output");
+    });
 }
 
 MainWindow::~MainWindow()
@@ -23,8 +27,10 @@ void MainWindow::openFilePicker(QString mode) {
     QString filePath = QFileDialog::getExistingDirectory(this, tr("file_picker_select_folder"), "./");
     if (!filePath.isEmpty()) {
         if (mode == "input"){
-                ui->inputFolderTextEdit->setPlainText(filePath);
-            }
-        else {}
+            ui->inputFolderTextEdit->setPlainText(filePath);
+        }
+        else{
+            ui->outputFolderTextEdit->setPlainText(filePath);
+        }
     }
 }
