@@ -40,6 +40,8 @@ Thumbs.db
 /CMakeFiles/
 /build/
 cmake-build-*/
+/.qt/
+/.lupdate/
 
 # qtcreator generated files
 *.pro.user*
