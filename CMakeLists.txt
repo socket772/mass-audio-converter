@@ -3,7 +3,7 @@ project(mass-audio-converter LANGUAGES CXX)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools)
 
-qt_standard_project_setup()
+qt_standard_project_setup(I18N_TRANSLATED_LANGUAGES it en)
 
 qt_add_executable(mass-audio-converter
     WIN32 MACOSX_BUNDLE
@@ -15,12 +15,7 @@ qt_add_executable(mass-audio-converter
     utils.cpp
 )
 
-qt_add_translations(
-    TARGETS mass-audio-converter
-    TS_FILES
-        translations/mass-audio-converter_it_IT.ts
-        translations/mass_audio_converter_en_US.ts
-)
+qt_add_translations(mass-audio-converter TS_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/translations")
 
 target_link_libraries(mass-audio-converter
     PRIVATE
