@@ -19,6 +19,7 @@ public:
 
 private slots:
     void openFilePicker(QString mode);
+    void updateSliderLabel(qint64 threads);
 
 private:
     Ui::MainWindow *ui;

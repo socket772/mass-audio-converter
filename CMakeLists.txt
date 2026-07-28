@@ -11,6 +11,8 @@ qt_add_executable(mass-audio-converter
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    utils.h
+    utils.cpp
 )
 
 qt_add_translations(
