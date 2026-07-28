@@ -82,7 +82,7 @@
     <item row="2" column="0">
      <widget class="QPushButton" name="outputFilePickerPushButton">
       <property name="text">
-       <string>output</string>
+       <string>output_folder button</string>
       </property>
       <property name="icon">
        <iconset theme="QIcon::ThemeIcon::FolderOpen"/>
@@ -149,7 +149,7 @@
     <item row="1" column="0">
      <widget class="QPushButton" name="inputFilePickerPushButton">
       <property name="text">
-       <string>input</string>
+       <string>input_folder_button</string>
       </property>
       <property name="icon">
        <iconset theme="QIcon::ThemeIcon::FolderOpen"/>
@@ -213,7 +213,7 @@
        </size>
       </property>
       <property name="text">
-       <string>auto</string>
+       <string notr="true">auto</string>
       </property>
      </widget>
     </item>
