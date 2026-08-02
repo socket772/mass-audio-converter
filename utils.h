@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 #include <QStringList>
+#include <string>
 
 struct formDataStruct
 {
@@ -15,5 +16,7 @@ inline constexpr std::size_t formatsCount = 10;
 const QStringList &formatsList();
 extern formDataStruct formData;
 std::string prettyFormData(formDataStruct formData);
+std::vector<std::string> filteredFilesFolder(std::string folderPath);
+bool isSupportedFormat(std::string fileExtension);
 
 #endif // UTILS_H
