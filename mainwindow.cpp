@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <QDebug>
 #include "QFileDialog"
 #include "QFlags"
 #include "ui_mainwindow.h"
@@ -22,12 +23,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Connetti lo slider al label accanto per indicare in numero di thread da usare
     // se 0 allora sara automatico (ovvero il massimo disponibile)
-    connect(ui->threadsSlider, &QSlider::sliderMoved, this, [this]{
+    connect(ui->threadsSlider, &QSlider::valueChanged, this, [this] {
         updateSliderLabel(ui->threadsSlider->sliderPosition());
     });
 
     // Riempo la combobox dei formati di output
     ui->formatComboBox->addItems(formatsList());
+
+    // Configuro il form data
+    formData = {ui->inputFolderTextEdit->toPlainText().toStdString(),
+                ui->outputFolderTextEdit->toPlainText().toStdString(),
+                ui->formatComboBox->currentText().toStdString(),
+                ui->threadsSlider->sliderPosition(),
+                ui->overwriteCheckBox->isChecked()};
 }
 
 MainWindow::~MainWindow()
@@ -40,15 +48,17 @@ void MainWindow::openFilePicker(QString mode) {
     if (!filePath.isEmpty()) {
         if (mode == "input"){
             ui->inputFolderTextEdit->setPlainText(filePath);
+            formData.inputFolder = filePath.toStdString();
         }
         else{
             ui->outputFolderTextEdit->setPlainText(filePath);
+            formData.outputFolder = filePath.toStdString();
         }
     }
 }
 
 void MainWindow::updateSliderLabel(qint64 threads) {
-    if (threads== 0)
+    if (threads == 0)
         ui->threadsNumberLabel->setText("auto");
     else
         ui->threadsNumberLabel->setText(QString::number(threads));
