@@ -13,6 +13,7 @@ qt_add_executable(mass-audio-converter
     mainwindow.ui
     utils.h
     utils.cpp
+    converterworker.h
 )
 
 qt_add_translations(mass-audio-converter TS_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/translations")

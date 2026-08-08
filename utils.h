@@ -1,6 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 #include <QStringList>
+#include <mutex>
+#include <qcontainerfwd.h>
+#include <qwindowdefs.h>
 #include <string>
 
 struct formDataStruct
@@ -15,6 +18,9 @@ struct formDataStruct
 inline constexpr std::size_t formatsCount = 10;
 const QStringList &formatsList();
 extern formDataStruct formData;
+extern QWidgetList widgetList;
+extern std::vector<std::string> filesList;
+extern std::mutex sharedMutex;
 std::string prettyFormData(formDataStruct formData);
 std::vector<std::string> filteredFilesFolder(std::string folderPath);
 bool isSupportedFormat(std::string fileExtension);

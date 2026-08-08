@@ -36,6 +36,59 @@
     <enum>Qt::LayoutDirection::LeftToRight</enum>
    </property>
    <layout class="QGridLayout" name="gridLayout">
+    <item row="8" column="0">
+     <widget class="QCheckBox" name="overwriteCheckBox">
+      <property name="text">
+       <string>overwrite_checkbox_text</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="3">
+     <widget class="QLabel" name="threadsNumberLabel">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>30</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="text">
+       <string notr="true">auto</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="2">
+     <widget class="QSlider" name="threadsSlider">
+      <property name="maximum">
+       <number>8</number>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="0">
+     <widget class="QLabel" name="formatLabel">
+      <property name="text">
+       <string>format_label</string>
+      </property>
+     </widget>
+    </item>
+    <item row="11" column="0">
+     <widget class="QLabel" name="progressBarLabel">
+      <property name="text">
+       <string>progress_bar_label</string>
+      </property>
+     </widget>
+    </item>
     <item row="1" column="2" colspan="2">
      <widget class="QPlainTextEdit" name="inputFolderTextEdit">
       <property name="sizePolicy">
@@ -75,12 +128,15 @@
        <enum>QPlainTextEdit::LineWrapMode::NoWrap</enum>
       </property>
       <property name="readOnly">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="plainText">
        <string notr="true">./</string>
       </property>
      </widget>
+    </item>
+    <item row="7" column="2" colspan="2">
+     <widget class="QComboBox" name="formatComboBox"/>
     </item>
     <item row="2" column="0">
      <widget class="QPushButton" name="outputFilePickerPushButton">
@@ -98,10 +154,32 @@
       </property>
      </widget>
     </item>
-    <item row="8" column="0">
-     <widget class="QCheckBox" name="overwriteCheckBox">
+    <item row="1" column="0">
+     <widget class="QPushButton" name="inputFilePickerPushButton">
       <property name="text">
-       <string>overwrite_checkbox_text</string>
+       <string>input_folder_button</string>
+      </property>
+      <property name="icon">
+       <iconset theme="QIcon::ThemeIcon::FolderOpen"/>
+      </property>
+      <property name="checkable">
+       <bool>false</bool>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="11" column="2">
+     <widget class="QProgressBar" name="progressBar">
+      <property name="maximum">
+       <number>100</number>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
       </property>
      </widget>
     </item>
@@ -138,37 +216,14 @@
        <enum>QPlainTextEdit::LineWrapMode::NoWrap</enum>
       </property>
       <property name="readOnly">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="plainText">
        <string notr="true">./</string>
       </property>
      </widget>
     </item>
-    <item row="7" column="0">
-     <widget class="QLabel" name="formatLabel">
-      <property name="text">
-       <string>format_label</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QPushButton" name="inputFilePickerPushButton">
-      <property name="text">
-       <string>input_folder_button</string>
-      </property>
-      <property name="icon">
-       <iconset theme="QIcon::ThemeIcon::FolderOpen"/>
-      </property>
-      <property name="checkable">
-       <bool>false</bool>
-      </property>
-      <property name="flat">
-       <bool>false</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="9" column="2">
+    <item row="10" column="2">
      <spacer name="verticalSpacer">
       <property name="orientation">
        <enum>Qt::Orientation::Vertical</enum>
@@ -181,19 +236,6 @@
       </property>
      </spacer>
     </item>
-    <item row="5" column="2">
-     <widget class="QSlider" name="threadsSlider">
-      <property name="maximum">
-       <number>8</number>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-      <property name="invertedAppearance">
-       <bool>false</bool>
-      </property>
-     </widget>
-    </item>
     <item row="5" column="0">
      <widget class="QLabel" name="threadsLabel">
       <property name="text">
@@ -201,42 +243,13 @@
       </property>
      </widget>
     </item>
-    <item row="7" column="2" colspan="2">
-     <widget class="QComboBox" name="formatComboBox"/>
-    </item>
-    <item row="5" column="3">
-     <widget class="QLabel" name="threadsNumberLabel">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>30</width>
-        <height>0</height>
-       </size>
+    <item row="9" column="0" colspan="4">
+     <widget class="QPushButton" name="startPushButton">
+      <property name="enabled">
+       <bool>true</bool>
       </property>
       <property name="text">
-       <string notr="true">auto</string>
-      </property>
-     </widget>
-    </item>
-    <item row="10" column="2">
-     <widget class="QProgressBar" name="progressBar">
-      <property name="value">
-       <number>0</number>
-      </property>
-      <property name="invertedAppearance">
-       <bool>false</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="10" column="0">
-     <widget class="QLabel" name="progressBarLabel">
-      <property name="text">
-       <string>progress_bar_label</string>
+       <string>start_button</string>
       </property>
      </widget>
     </item>
