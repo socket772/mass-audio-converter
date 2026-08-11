@@ -1,21 +1,16 @@
 #ifndef CONVERTERWORKER_H
 #define CONVERTERWORKER_H
 
-#include <qobject.h>
+#include <qthread.h>
 #include <qtmetamacros.h>
 #include <utils.h>
-class ConverterWorker : public QObject
+
+class ConverterWorker : public QThread
 {
-    Q_OBJECT
-
-public:
-    ConverterWorker(QAtomicInt *done, QObject *parent = nullptr)
-        : QObject(parent)
-    {}
-
+protected:
+    void run();
 signals:
-    void progress(int done, int total);
-    void finished();
+    void progress();
 };
 
 #endif // CONVERTERWORKER_H
