@@ -5,6 +5,7 @@
 #include <qcontainerfwd.h>
 #include <qwindowdefs.h>
 #include <string>
+#include <vector>
 
 struct formDataStruct
 {
@@ -17,12 +18,19 @@ struct formDataStruct
 
 inline constexpr std::size_t formatsCount = 10;
 const QStringList &formatsList();
+
+// Variabili globali
 extern formDataStruct formData;
 extern QWidgetList widgetList;
 extern std::vector<std::string> filesList;
 extern std::mutex sharedMutex;
+extern int finishedThreads;
+
+// Variabili locali
 std::string prettyFormData(formDataStruct formData);
 std::vector<std::string> filteredFilesFolder(std::string folderPath);
+int getPidCrossPlatform();
+std::string getThreadId();
 bool isSupportedFormat(std::string fileExtension);
 
 #endif // UTILS_H

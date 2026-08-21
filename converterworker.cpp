@@ -1,22 +1,31 @@
 #include "converterworker.h"
 #include "utils.h"
-#include <algorithm>
-#include <string>
+#include <qdebug.h>
 
 void ConverterWorker::run()
 {
     while (true) {
-        std::string filePath;
         // Blocco dove accedo al file tramite mutex, cosi viene distrutto subito
-        {
-            sharedMutex.lock();
-            if (filesList.empty()) {
-                break;
-            }
 
-            // estrai un file dalla pila (LIFO)
-            filePath = filesList.back();
-            filesList.pop_back();
+        qInfo() << "w" + std::to_string(threadId) + ":" << "aspetto lock";
+        sharedMutex.lock();
+        qInfo() << "w" + std::to_string(threadId) + ":" << "lock preso";
+        if (filesList.empty()) {
+            qInfo() << "w" + std::to_string(threadId) + ":" << "lock lasciato";
+            sharedMutex.unlock();
+            qInfo() << "w" + std::to_string(threadId) + ":" << "file finiti";
+            break;
         }
+
+        // estrai un file dalla pila (LIFO)
+        filePath = filesList.back();
+        filesList.pop_back();
+        sharedMutex.unlock();
+        qInfo() << "w" + std::to_string(threadId) + ":" << "lock lasciato";
+
+        qInfo() << "w" + std::to_string(threadId) + ":" << "emit progress";
+        emit progress();
     }
+    qInfo() << "w" + std::to_string(threadId) + ":" << "Finished";
+    // thread()->quit();
 }

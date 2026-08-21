@@ -2,9 +2,13 @@
 #include <QDebug>
 #include "QFileDialog"
 #include "QFlags"
+#include "converterworker.h"
 #include "ui_mainwindow.h"
 #include "utils.h"
+#include <qlogging.h>
+#include <qobject.h>
 #include <qpushbutton.h>
+#include <string>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -31,6 +35,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Riempo la combobox dei formati di output
     ui->formatComboBox->addItems(formatsList());
 
+    // Imposto il massimo dei thread per lo slider
+    ui->threadsSlider->setMaximum(QThread::idealThreadCount());
+
     // Connetto il pulsate di avvio
     connect(ui->startPushButton, &QPushButton::clicked, this, &MainWindow::startProcessButton);
 
@@ -38,7 +45,8 @@ MainWindow::MainWindow(QWidget *parent)
     widgetList = {ui->formatComboBox,
                   ui->inputFilePickerPushButton,
                   ui->outputFilePickerPushButton,
-                  ui->startPushButton};
+                  ui->startPushButton,
+                  ui->threadsSlider};
 
     // Configuro il form data
     formData = {ui->inputFolderTextEdit->toPlainText().toStdString(),
@@ -80,15 +88,63 @@ void MainWindow::updateSliderLabel(qint64 threads) {
         ui->threadsNumberLabel->setText(QString::number(threads));
     formData.threadsNumber = threads;
 }
-
-void MainWindow::startProcessButton()
+void MainWindow::lockUi()
 {
     /*
      * Disabilita tutti i pulsanti
      */
+    qInfo() << "Blocco ui";
     for (int i = 0; i < widgetList.size(); ++i) {
         widgetList.at(i)->setEnabled(false);
     }
+}
 
+void MainWindow::unlockUi()
+{
+    /*
+     * Abilita tutti i pulsanti solo se tutti i thread hanno finito
+     */
+    qInfo() << "Sblocco ui";
+    for (int i = 0; i < widgetList.size(); ++i) {
+        widgetList.at(i)->setEnabled(true);
+    }
+}
+
+void MainWindow::startProcessButton()
+{
+    lockUi();
     filesList = filteredFilesFolder(formData.inputFolder);
+    if (filesList.size() == 0) {
+        ui->logText->append(tr("no_files_present_input"));
+        unlockUi();
+        return;
+    }
+    // Imposto la barra del progresso
+    ui->progressBar->setMaximum(filesList.size());
+
+    if (formData.threadsNumber == 0) {
+        formData.threadsNumber = QThread::idealThreadCount();
+    }
+
+    qInfo() << "Avvio thread";
+    for (int i = 0; i < formData.threadsNumber; ++i) {
+        qInfo() << "Avvio thread" << i;
+        ConverterWorker *worker = new ConverterWorker(i);
+
+        connect(worker, &ConverterWorker::progress, this, [this, worker]() {
+            ui->logText->append(
+                QString::fromStdString(std::to_string(worker->threadId) + "->" + worker->filePath));
+            ui->progressBar->setValue(ui->progressBar->value() + 1);
+        });
+
+        connect(worker, &ConverterWorker::finished, this, [this, worker]() {
+            finishedThreads++;
+            qInfo() << worker->threadId << "segnale inviato" << finishedThreads;
+            if (finishedThreads == formData.threadsNumber) {
+                unlockUi();
+            }
+        });
+
+        worker->start();
+    }
 }

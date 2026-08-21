@@ -1,6 +1,15 @@
 #include "utils.h"
 #include <filesystem>
+#include <qdebug.h>
 #include <string>
+#include <thread>
+
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__unix__) || defined(__APPLE__)
+#include <unistd.h>
+#else
+#endif
 
 /*
  * Lista di formati supportati per l'output
@@ -14,9 +23,12 @@ const QStringList &formatsList() {
   return list;
 };
 
+// Inizializzazione variabili
 formDataStruct formData{};
 QWidgetList widgetList{};
 std::vector<std::string> filesList{};
+std::mutex sharedMutex;
+int finishedThreads = 0;
 
 /*
  * Stampa di debug per formDataStruct
@@ -37,7 +49,7 @@ std::string prettyFormData(formDataStruct formData)
  */
 bool isSupportedFormat(std::string fileExtension)
 {
-    if (formatsList().contains(fileExtension))
+    if (formatsList().contains(fileExtension.erase(0, 1)))
         return true;
     else
         return false;
@@ -56,4 +68,24 @@ std::vector<std::string> filteredFilesFolder(std::string folderPath)
     }
 
     return filteredFiles;
+}
+
+int getPidCrossPlatform()
+{
+#ifdef _WIN32
+    return static_cast<int>(GetCurrentProcessId());
+#elif defined(__unix__) || defined(__APPLE__)
+    return static_cast<int>(getpid());
+#else
+    return -1;
+#endif
+}
+
+// https://stackoverflow.com/a/19255209
+std::string getThreadId()
+{
+    std::ostringstream ss;
+    ss << std::this_thread::get_id();
+    std::string idstr = ss.str();
+    return idstr;
 }

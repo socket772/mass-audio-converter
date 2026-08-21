@@ -21,6 +21,8 @@ private slots:
     void openFilePicker(QString mode);
     void updateSliderLabel(qint64 threads);
     void startProcessButton();
+    void lockUi();
+    void unlockUi();
 
 private:
     Ui::MainWindow *ui;

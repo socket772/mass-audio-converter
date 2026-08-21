@@ -3,10 +3,17 @@
 
 #include <qthread.h>
 #include <qtmetamacros.h>
-#include <utils.h>
 
 class ConverterWorker : public QThread
 {
+    Q_OBJECT
+public:
+    explicit ConverterWorker(int threadId, QObject *parent = nullptr)
+        : QThread(parent)
+        , threadId(threadId) {};
+    int threadId;
+    std::string filePath;
+
 protected:
     void run();
 signals:
