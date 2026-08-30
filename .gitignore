@@ -39,6 +39,7 @@ Thumbs.db
 /CMakeCache.txt
 /CMakeFiles/
 /build/
+/clean/
 cmake-build-*/
 /.qt/
 /.lupdate/

@@ -44,7 +44,7 @@
         <translation type="unfinished">Select a folder</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="118"/>
+        <location filename="../mainwindow.cpp" line="117"/>
         <source>no_files_present_input</source>
         <translation type="unfinished">Supprted files not found</translation>
     </message>

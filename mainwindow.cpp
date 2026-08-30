@@ -93,7 +93,6 @@ void MainWindow::lockUi()
     /*
      * Disabilita tutti i pulsanti
      */
-    qInfo() << "Blocco ui";
     for (int i = 0; i < widgetList.size(); ++i) {
         widgetList.at(i)->setEnabled(false);
     }
@@ -104,7 +103,6 @@ void MainWindow::unlockUi()
     /*
      * Abilita tutti i pulsanti solo se tutti i thread hanno finito
      */
-    qInfo() << "Sblocco ui";
     for (int i = 0; i < widgetList.size(); ++i) {
         widgetList.at(i)->setEnabled(true);
     }
@@ -113,6 +111,7 @@ void MainWindow::unlockUi()
 void MainWindow::startProcessButton()
 {
     lockUi();
+    finishedThreads = 0;
     filesList = filteredFilesFolder(formData.inputFolder);
     if (filesList.size() == 0) {
         ui->logText->append(tr("no_files_present_input"));
@@ -126,20 +125,16 @@ void MainWindow::startProcessButton()
         formData.threadsNumber = QThread::idealThreadCount();
     }
 
-    qInfo() << "Avvio thread";
     for (int i = 0; i < formData.threadsNumber; ++i) {
-        qInfo() << "Avvio thread" << i;
-        ConverterWorker *worker = new ConverterWorker(i);
+        ConverterWorker *worker = new ConverterWorker(std::to_string(i));
 
         connect(worker, &ConverterWorker::progress, this, [this, worker]() {
-            ui->logText->append(
-                QString::fromStdString(std::to_string(worker->threadId) + "->" + worker->filePath));
+            ui->logText->append(QString::fromStdString(worker->threadId + "->" + worker->filePath));
             ui->progressBar->setValue(ui->progressBar->value() + 1);
         });
 
         connect(worker, &ConverterWorker::finished, this, [this, worker]() {
             finishedThreads++;
-            qInfo() << worker->threadId << "segnale inviato" << finishedThreads;
             if (finishedThreads == formData.threadsNumber) {
                 unlockUi();
             }

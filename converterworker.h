@@ -8,14 +8,18 @@ class ConverterWorker : public QThread
 {
     Q_OBJECT
 public:
-    explicit ConverterWorker(int threadId, QObject *parent = nullptr)
+    explicit ConverterWorker(std::string threadId, QObject *parent = nullptr)
         : QThread(parent)
         , threadId(threadId) {};
-    int threadId;
+    std::string threadId;
     std::string filePath;
 
 protected:
     void run();
+
+private:
+    int convert();
+
 signals:
     void progress();
 };

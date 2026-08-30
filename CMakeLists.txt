@@ -3,6 +3,15 @@ project(mass-audio-converter LANGUAGES CXX)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools)
 
+# Aggiungo ffmpeg
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+    libavformat
+    libavcodec
+    libavutil
+    libswresample
+)
+
 qt_standard_project_setup(I18N_TRANSLATED_LANGUAGES it en)
 
 qt_add_executable(mass-audio-converter
@@ -23,6 +32,7 @@ target_link_libraries(mass-audio-converter
     PRIVATE
         Qt::Core
         Qt::Widgets
+        PkgConfig::FFMPEG
 )
 
 install(TARGETS mass-audio-converter
