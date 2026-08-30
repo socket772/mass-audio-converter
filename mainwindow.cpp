@@ -128,10 +128,13 @@ void MainWindow::startProcessButton()
     for (int i = 0; i < formData.threadsNumber; ++i) {
         ConverterWorker *worker = new ConverterWorker(std::to_string(i));
 
-        connect(worker, &ConverterWorker::progress, this, [this, worker]() {
-            ui->logText->append(QString::fromStdString(worker->threadId + "->" + worker->filePath));
-            ui->progressBar->setValue(ui->progressBar->value() + 1);
-        });
+        connect(worker,
+                &ConverterWorker::progress,
+                this,
+                [this](std::string threadId, std::string filePath) {
+                    ui->logText->append(QString::fromStdString(threadId + "->" + filePath));
+                    ui->progressBar->setValue(ui->progressBar->value() + 1);
+                });
 
         connect(worker, &ConverterWorker::finished, this, [this, worker]() {
             finishedThreads++;

@@ -29,7 +29,7 @@ void ConverterWorker::run()
         // Avvio la conversione
         convert();
 
-        emit progress();
+        emit progress(threadId, filePath);
     }
     qInfo() << threadId + "-> Finished";
 }

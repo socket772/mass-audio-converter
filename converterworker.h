@@ -3,6 +3,7 @@
 
 #include <qthread.h>
 #include <qtmetamacros.h>
+#include <string>
 
 class ConverterWorker : public QThread
 {
@@ -21,7 +22,7 @@ private:
     int convert();
 
 signals:
-    void progress();
+    void progress(std::string threadId, std::string filePath);
 };
 
 #endif // CONVERTERWORKER_H
