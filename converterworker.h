@@ -28,32 +28,8 @@ protected:
     void run();
 
 private:
+    // Funzioni
     int convert();
-    // Secondo duckai
-    //     inputFormat
-    //      └── inputStream
-    //          └── decoder
-    //              └── decodedFrame
-    //                  └── resampler
-    //                      └── convertedFrame
-    //                          └── encoder
-    //                              └── outputStream
-    struct AudioStream
-    {
-        int inputIndex = -1;
-        int outputIndex = -1;
-        // Salva la stream singola
-        AVStream *inputStream = nullptr;
-        AVStream *outputStream = nullptr;
-        // Serve un decoder/encoder per stream
-        AVCodecContext *decoder = nullptr;
-        AVCodecContext *encoder = nullptr;
-        // Conversione del formato audio
-        SwrContext *resampler = nullptr;
-        // Audio convertito
-        AVFrame *decodedFrame = nullptr;
-        AVFrame *convertedFrame = nullptr;
-    };
 
 signals:
     void progress(std::string threadId, std::string filePath);

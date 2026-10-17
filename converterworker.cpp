@@ -31,11 +31,14 @@ void ConverterWorker::run()
 int ConverterWorker::convert()
 {
     // Cerco il formato del file, inizio dal contenitore
+    // in input context si trova il file intero
     AVFormatContext *inputContext = nullptr;
     AVFormatContext *outputContext = nullptr;
+    AVCodecContext *decoderContext = nullptr;
+    AVCodecContext *encoderContext = nullptr;
+    SwrContext *resampler = nullptr;
 
     // Qui tengo tuttle le stream audio
-    std::vector<AudioStream> audioStreams;
 
     // apro l'header per verificare la leggibilità
     int read_check = avformat_open_input(&inputContext, filePath.c_str(), nullptr, nullptr);
