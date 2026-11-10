@@ -31,53 +31,57 @@ void ConverterWorker::run()
 int ConverterWorker::convert()
 {
     // Cerco il formato del file, inizio dal contenitore
-    // in input context si trova il file intero
-    AVFormatContext *inputContext = nullptr;
-    AVFormatContext *outputContext = nullptr;
-    AVCodecContext *decoderContext = nullptr;
-    AVCodecContext *encoderContext = nullptr;
-    SwrContext *resampler = nullptr;
+    // inputCtx si trova il file intero
+    AVFormatContext *inputCtx = nullptr;
+    // outputCtx si trova il file intero finale
+    AVFormatContext *outputCtx = nullptr;
 
-    // Qui tengo tuttle le stream audio
+    // vettori per le varie stream audio trovate
+    std::unordered_map<int, size_t> streamMap;
+    std::vector<int> outStreamIndices;
+    std::vector<AVCodecContext*> decoders;
+    std::vector<AVCodecContext*> encoders;
+    std::vector<SwrContext*> resamplers;
 
     // apro l'header per verificare la leggibilità
-    int read_check = avformat_open_input(&inputContext, filePath.c_str(), nullptr, nullptr);
+    int read_check = avformat_open_input(&inputCtx, filePath.c_str(), nullptr, nullptr);
     if (read_check < 0) {
         qWarning().noquote() << threadId + "-> non risco a leggere l'header: " + filePath;
         return 1;
     }
 
     // verifico i dati della stream questo apre i dati
-    read_check = avformat_find_stream_info(inputContext, nullptr);
+    read_check = avformat_find_stream_info(inputCtx, nullptr);
     if (read_check < 0) {
         qWarning().noquote() << threadId + "-> non risco a leggere la stream: " + filePath;
 
         // Necessario perchè quando si esce dalla funzione viene
-        // distrutto il puntatore in inputContext ma la risorsa viene tenuta aperta
-        avformat_close_input(&inputContext);
+        // distrutto il puntatore in inputCtx ma la risorsa viene tenuta aperta
+        avformat_close_input(&inputCtx);
         return 1;
     }
 
     // Stampo le informazioni del contenitore
     qInfo().noquote() << QStringLiteral("%1 -> Nome: %2 | Desc: %3 | Num stream: %4")
                              .arg(threadId)
-                             .arg(inputContext->iformat->name)
-                             .arg(inputContext->iformat->long_name)
-                             .arg(inputContext->nb_streams);
+                             .arg(inputCtx->iformat->name)
+                             .arg(inputCtx->iformat->long_name)
+                             .arg(inputCtx->nb_streams);
 
-    // Carico le stream per il decoding in audiostream
-
-    // Leggo le stream singole
-    for (int i = 0; i < inputContext->nb_streams; ++i) {
-        AVStream *stream = inputContext->streams[i];
+    // Carico le stream audio
+    for (int i = 0; i < inputCtx->nb_streams; ++i) {
+        // prendo il riferimento della stream singola
+        AVStream *stream = inputCtx->streams[i];
+        // prendo il riferimento dei parametri del codec
         AVCodecParameters *codecPar = stream->codecpar;
-        const AVCodecDescriptor *codecDescriptor = avcodec_descriptor_get(codecPar->codec_id);
 
         if (codecPar->codec_type == AVMEDIA_TYPE_VIDEO) {
             qWarning().noquote() << QStringLiteral("%1 -> Video non supportato").arg(threadId);
             continue;
         }
 
+        // potrebbe non essere necessaria questa istanza
+        const AVCodecDescriptor *codecDescriptor = avcodec_descriptor_get(codecPar->codec_id);
         qInfo().noquote() << QStringLiteral("%1 -> Stream: %2 | Tipo: %3 | Codec: %4 | Codec ID: "
                                             "%5 | Sample rate: %6Hz | Canali: %7")
                                  .arg(threadId)
