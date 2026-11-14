@@ -1,8 +1,11 @@
 #include "converterworker.h"
+#include "ffmpegdeleters.h"
 #include "utils.h"
 #include <qdebug.h>
 #include <qlogging.h>
 #include <string>
+
+using namespace FFmpegUtils;
 
 void ConverterWorker::run()
 {
@@ -30,100 +33,242 @@ void ConverterWorker::run()
 
 int ConverterWorker::convert()
 {
-    // Cerco il formato del file, inizio dal contenitore
-    // inputCtx si trova il file intero
-    AVFormatContext *inputCtx = nullptr;
-    // outputCtx si trova il file intero finale
-    AVFormatContext *outputCtx = nullptr;
+    // Creazione contesto di input
+    AVFormatContext *rawInputCtx;
+    if (avformat_open_input(&rawInputCtx, filePath.c_str(), nullptr, nullptr) < 0) {
+        qWarning().noquote() << QString::fromStdString(threadId)
+                                    + " -> Impossibile aprire l'header: "
+                                    + QString::fromStdString(filePath);
+        return 1;
+    }
+    // Da questo momento la risorsa è gestita dal RAII
+    InputFormatContextPtr inputContext(rawInputCtx);
 
-    // vettori per le varie stream audio trovate
+    if (avformat_find_stream_info(inputContext.get(), nullptr) < 0) {
+        qWarning().noquote() << QString::fromStdString(threadId)
+                                    + " -> Impossibile leggere gli stream: "
+                                    + QString::fromStdString(filePath);
+        return 1; // RAII chiuderà automaticamente inputContext!
+    }
+
+    qInfo().noquote() << QStringLiteral("%1 -> Nome: %2 | Desc: %3 | Num stream: %4")
+                             .arg(QString::fromStdString(threadId))
+                             .arg(inputContext->iformat->name)
+                             .arg(inputContext->iformat->long_name)
+                             .arg(inputContext->nb_streams);
+
+    // Creazione contesto di output
+    AVFormatContext *rawOutputCtx;
+    if (avformat_alloc_output_context2(&rawOutputCtx, nullptr, nullptr, filePath.c_str()) < 0
+        || !rawOutputCtx) {
+        qWarning().noquote() << QString::fromStdString(threadId)
+                                    + " -> Impossibile allocare l'output context";
+        return 1; // RAII pulisce automaticamente inputContext!
+    }
+    OutputFormatContextPtr outputContext(rawOutputCtx);
+
+    // setup dei vettori per le stream singole da convertire
     std::unordered_map<int, size_t> streamMap;
     std::vector<int> outStreamIndices;
-    std::vector<AVCodecContext*> decoders;
-    std::vector<AVCodecContext*> encoders;
-    std::vector<SwrContext*> resamplers;
+    std::vector<CodecContextPtr> decoders;
+    std::vector<CodecContextPtr> encoders;
+    std::vector<SwrContextPtr> resamplers;
 
-    // apro l'header per verificare la leggibilità
-    int read_check = avformat_open_input(&inputCtx, filePath.c_str(), nullptr, nullptr);
-    if (read_check < 0) {
-        qWarning().noquote() << threadId + "-> non risco a leggere l'header: " + filePath;
-        return 1;
-    }
+    // Conversione delle stream audio
+    for (int i = 0; i < static_cast<int>(inputContext->nb_streams); ++i) {
+        AVStream *inStream = inputContext->streams[i];
+        AVCodecParameters *codecPar = inStream->codecpar;
 
-    // verifico i dati della stream questo apre i dati
-    read_check = avformat_find_stream_info(inputCtx, nullptr);
-    if (read_check < 0) {
-        qWarning().noquote() << threadId + "-> non risco a leggere la stream: " + filePath;
-
-        // Necessario perchè quando si esce dalla funzione viene
-        // distrutto il puntatore in inputCtx ma la risorsa viene tenuta aperta
-        avformat_close_input(&inputCtx);
-        return 1;
-    }
-
-    // Stampo le informazioni del contenitore
-    qInfo().noquote() << QStringLiteral("%1 -> Nome: %2 | Desc: %3 | Num stream: %4")
-                             .arg(threadId)
-                             .arg(inputCtx->iformat->name)
-                             .arg(inputCtx->iformat->long_name)
-                             .arg(inputCtx->nb_streams);
-
-    // Carico le stream audio
-    for (int i = 0; i < inputCtx->nb_streams; ++i) {
-        // prendo il riferimento della stream singola
-        AVStream *stream = inputCtx->streams[i];
-        // prendo il riferimento dei parametri del codec
-        AVCodecParameters *codecPar = stream->codecpar;
-
-        if (codecPar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            qWarning().noquote() << QStringLiteral("%1 -> Video non supportato").arg(threadId);
+        // Filtro le stream per solo quelle audio
+        if (codecPar->codec_type != AVMEDIA_TYPE_AUDIO) {
             continue;
         }
 
-        // potrebbe non essere necessaria questa istanza
-        const AVCodecDescriptor *codecDescriptor = avcodec_descriptor_get(codecPar->codec_id);
-        qInfo().noquote() << QStringLiteral("%1 -> Stream: %2 | Tipo: %3 | Codec: %4 | Codec ID: "
-                                            "%5 | Sample rate: %6Hz | Canali: %7")
-                                 .arg(threadId)
-                                 .arg(i)
-                                 .arg(av_get_media_type_string(codecPar->codec_type))
-                                 .arg(codecDescriptor ? codecDescriptor->name : "sconosciuto")
-                                 .arg(codecPar->codec_id)
-                                 .arg(codecPar->sample_rate)
-                                 .arg(codecPar->ch_layout.nb_channels);
-
-        // Inizializzo il decoder
+        // DECODER
+        // cerca il decoder di default
         const AVCodec *decoder = avcodec_find_decoder(codecPar->codec_id);
-        if (!decoder) {
-            qWarning().noquote() << QStringLiteral("%1 -> Decoder non trovato").arg(threadId);
-            return 1;
+        if (!decoder)
+            continue;
+
+        // creo il contesto del decoder. però è vuoto
+        CodecContextPtr decCtx(avcodec_alloc_context3(decoder));
+        if (!decCtx)
+            continue;
+
+        // Configura le impostazioni del decoder, copiando quelle della stream
+        // Configuro anche la scala di tempo
+        avcodec_parameters_to_context(decCtx.get(), codecPar);
+        decCtx->time_base = inStream->time_base;
+
+        if (avcodec_open2(decCtx.get(), decoder, nullptr) < 0)
+            continue;
+
+        // ENCODER
+        // cerca l'encoder di default
+        const AVCodec *encoder = avcodec_find_encoder(outputContext->oformat->audio_codec);
+        if (!encoder)
+            continue;
+
+        // Creazione stream vuota di output
+        AVStream *outStream = avformat_new_stream(outputContext.get(), nullptr);
+        if (!outStream)
+            continue;
+
+        // configurazione dell'encoder
+        CodecContextPtr encCtx(avcodec_alloc_context3(encoder));
+        if (!encCtx)
+            continue;
+
+        // copio i dati nell'encoder per averli uguali al decoder
+        encCtx->sample_rate = decCtx->sample_rate;
+        av_channel_layout_copy(&encCtx->ch_layout, &decCtx->ch_layout);
+
+        // FFmpeg 7.0+ API per la scelta del sample_fmt
+        //
+        const enum AVSampleFormat *supported_sample_fmts = nullptr;
+        int num_sample_fmts = 0;
+        avcodec_get_supported_config(nullptr,
+                                     encoder,
+                                     AV_CODEC_CONFIG_SAMPLE_FORMAT,
+                                     0,
+                                     (const void **) &supported_sample_fmts,
+                                     &num_sample_fmts);
+
+        encCtx->sample_fmt = (supported_sample_fmts && num_sample_fmts > 0)
+                                 ? supported_sample_fmts[0]
+                                 : AV_SAMPLE_FMT_FLTP;
+
+        encCtx->time_base = (AVRational) {1, encCtx->sample_rate};
+        outStream->time_base = encCtx->time_base;
+
+        if (outputContext->oformat->flags & AVFMT_GLOBALHEADER) {
+            encCtx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
         }
 
-        AVCodecContext *codecCtx = avcodec_alloc_context3(decoder);
-        if (!codecCtx) {
-            qWarning().noquote() << QStringLiteral("%1 -> Decoder non trovato").arg(threadId);
-            return 1;
-        }
+        if (avcodec_open2(encCtx.get(), encoder, nullptr) < 0)
+            continue;
 
-        int ret = avcodec_parameters_to_context(codecCtx, codecPar);
-        if (ret < 0) {
-            qWarning().noquote() << QStringLiteral(
-                                        "%1 -> Errore nella copia dei parametri del codec")
-                                        .arg(threadId);
-            avcodec_free_context(&codecCtx);
-            return 1;
-        }
+        avcodec_parameters_from_context(outStream->codecpar, encCtx.get());
 
-        ret = avcodec_open2(codecCtx, decoder, nullptr);
-        if (ret < 0) {
-            qWarning().noquote() << QStringLiteral("%1 -> Impossibile aprire il decoder")
-                                        .arg(threadId);
-            avcodec_free_context(&codecCtx);
-            return 1;
-        }
+        // --- RESAMPLER ---
+        SwrContext *rawSwr = nullptr;
+        swr_alloc_set_opts2(&rawSwr,
+                            &encCtx->ch_layout,
+                            encCtx->sample_fmt,
+                            encCtx->sample_rate,
+                            &decCtx->ch_layout,
+                            decCtx->sample_fmt,
+                            decCtx->sample_rate,
+                            0,
+                            nullptr);
 
-        // Uso il decoder
+        SwrContextPtr swr(rawSwr);
+        if (swr_init(swr.get()) < 0)
+            continue;
+
+        // Salva la traccia configurata nei vettori RAII
+        size_t trackIdx = decoders.size();
+        streamMap[i] = trackIdx;
+        outStreamIndices.push_back(outStream->index);
+        decoders.push_back(std::move(decCtx));
+        encoders.push_back(std::move(encCtx));
+        resamplers.push_back(std::move(swr));
     }
 
+    if (decoders.empty()) {
+        qWarning().noquote() << QString::fromStdString(threadId)
+                                    + " -> Nessuna traccia audio convertibile trovata";
+        return 1; // Rilascia in automatico tutte le risorse allocate fino a qui
+    }
+
+    // 4. APERTURA FILE E SCRITTURA HEADER
+    if (!(outputContext->oformat->flags & AVFMT_NOFILE)) {
+        if (avio_open(&outputContext->pb, filePath.c_str(), AVIO_FLAG_WRITE) < 0) {
+            qWarning().noquote() << QString::fromStdString(threadId)
+                                        + " -> Impossibile aprire il file di output";
+            return 1;
+        }
+    }
+
+    if (avformat_write_header(outputContext.get(), nullptr) < 0) {
+        qWarning().noquote() << QString::fromStdString(threadId)
+                                    + " -> Impossibile scrivere l'header di output";
+        return 1;
+    }
+
+    // 5. BUFFER E FRAME RAII
+    PacketPtr inPacket(av_packet_alloc());
+    PacketPtr outPacket(av_packet_alloc());
+    FramePtr decodedFrame(av_frame_alloc());
+    FramePtr convertedFrame(av_frame_alloc());
+
+    // LOOP DI CONVERSIONE
+    while (av_read_frame(inputContext.get(), inPacket.get()) >= 0) {
+        auto it = streamMap.find(inPacket->stream_index);
+
+        if (it != streamMap.end()) {
+            size_t idx = it->second;
+            AVCodecContext *decCtx = decoders[idx].get();
+            AVCodecContext *encCtx = encoders[idx].get();
+            SwrContext *swr = resamplers[idx].get();
+            int outStreamIdx = outStreamIndices[idx];
+            AVStream *inStream = inputContext->streams[inPacket->stream_index];
+
+            if (avcodec_send_packet(decCtx, inPacket.get()) >= 0) {
+                while (avcodec_receive_frame(decCtx, decodedFrame.get()) >= 0) {
+                    convertedFrame->nb_samples = decodedFrame->nb_samples;
+                    convertedFrame->format = encCtx->sample_fmt;
+                    av_channel_layout_copy(&convertedFrame->ch_layout, &encCtx->ch_layout);
+                    convertedFrame->sample_rate = encCtx->sample_rate;
+                    av_frame_get_buffer(convertedFrame.get(), 0);
+
+                    swr_convert(swr,
+                                convertedFrame->data,
+                                convertedFrame->nb_samples,
+                                (const uint8_t **) decodedFrame->data,
+                                decodedFrame->nb_samples);
+
+                    convertedFrame->pts = av_rescale_q(decodedFrame->pts,
+                                                       inStream->time_base,
+                                                       encCtx->time_base);
+
+                    if (avcodec_send_frame(encCtx, convertedFrame.get()) >= 0) {
+                        while (avcodec_receive_packet(encCtx, outPacket.get()) >= 0) {
+                            outPacket->stream_index = outStreamIdx;
+                            av_packet_rescale_ts(outPacket.get(),
+                                                 encCtx->time_base,
+                                                 outputContext->streams[outStreamIdx]->time_base);
+                            av_interleaved_write_frame(outputContext.get(), outPacket.get());
+                            av_packet_unref(outPacket.get());
+                        }
+                    }
+                    av_frame_unref(convertedFrame.get());
+                    av_frame_unref(decodedFrame.get());
+                }
+            }
+        }
+        av_packet_unref(inPacket.get());
+    }
+
+    // 6. FLUSH DEGLI ENCODER
+    for (size_t idx = 0; idx < encoders.size(); ++idx) {
+        avcodec_send_frame(encoders[idx].get(), nullptr);
+        while (avcodec_receive_packet(encoders[idx].get(), outPacket.get()) >= 0) {
+            outPacket->stream_index = outStreamIndices[idx];
+            av_packet_rescale_ts(outPacket.get(),
+                                 encoders[idx]->time_base,
+                                 outputContext->streams[outStreamIndices[idx]]->time_base);
+            av_interleaved_write_frame(outputContext.get(), outPacket.get());
+            av_packet_unref(outPacket.get());
+        }
+    }
+
+    av_write_trailer(outputContext.get());
+
+    qInfo().noquote() << QString::fromStdString(threadId)
+                             + " -> Conversione completata con successo!";
+
+    // Tutti gli smart pointer e vettori RAII verranno distrutti
+    // automaticamente al return, liberando la memoria C di FFmpeg.
     return 0;
 }

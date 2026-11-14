@@ -24,6 +24,7 @@ qt_add_executable(mass-audio-converter
     utils.cpp
     converterworker.h
     converterworker.cpp
+    ffmpegdeleters.h
 )
 
 qt_add_translations(mass-audio-converter TS_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/translations")
